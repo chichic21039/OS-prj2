@@ -7,6 +7,31 @@
 #include "syscall.h"
 #include "defs.h"
 
+char *syscall_names[] = {
+  [SYS_fork]    = "fork",
+  [SYS_exit]    = "exit",
+  [SYS_wait]    = "wait",
+  [SYS_pipe]    = "pipe",
+  [SYS_read]    = "read",
+  [SYS_kill]    = "kill",
+  [SYS_exec]    = "exec",
+  [SYS_fstat]   = "fstat",
+  [SYS_chdir]   = "chdir",
+  [SYS_dup]     = "dup",
+  [SYS_getpid]  = "getpid",
+  [SYS_sbrk]    = "sbrk",
+  [SYS_sleep]   = "sleep",
+  [SYS_uptime]  = "uptime",
+  [SYS_open]    = "open",
+  [SYS_write]   = "write",
+  [SYS_mknod]   = "mknod",
+  [SYS_unlink]  = "unlink",
+  [SYS_link]    = "link",
+  [SYS_mkdir]   = "mkdir",
+  [SYS_close]   = "close",
+  [SYS_trace]   = "trace",
+};
+
 // Fetch the uint64 at addr from the current process.
 int
 fetchaddr(uint64 addr, uint64 *ip)
@@ -53,10 +78,11 @@ argraw(int n)
 }
 
 // Fetch the nth 32-bit system call argument.
-void
+int
 argint(int n, int *ip)
 {
   *ip = argraw(n);
+  return 0;
 }
 
 // Retrieve an argument as a pointer.
@@ -101,6 +127,8 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
+extern uint64 sys_trace(void);
+
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -126,22 +154,57 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
 };
 
-void
-syscall(void)
-{
-  int num;
-  struct proc *p = myproc();
+// void syscall(void) {
+//     struct proc *p = myproc();
+//     int num = p->trapframe->a7;
 
-  num = p->trapframe->a7;
-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    // Use num to lookup the system call function for num, call it,
-    // and store its return value in p->trapframe->a0
-    p->trapframe->a0 = syscalls[num]();
-  } else {
-    printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
-    p->trapframe->a0 = -1;
-  }
+//     if (num > 0 && num < NELEM(syscalls) && syscalls[num]) 
+//     {
+//       uint64 args[6];
+//       args[0] = p->trapframe->a0;
+//       args[1] = p->trapframe->a1;
+//       args[2] = p->trapframe->a2;
+//       args[3] = p->trapframe->a3;
+//       args[4] = p->trapframe->a4;
+//       args[5] = p->trapframe->a5;
+      
+//         p->trapframe->a0 = syscalls[num](); // Gọi syscall
+
+//         // Nếu đang trace syscall này thì in log
+//         if (p->trace_mask & (1 << num)) 
+//           {
+//             printf("%d: syscall %s (", p->pid, syscall_names[num]);
+//             for(int i = 0; i < 6; i++)
+//             {
+//               printf("%ld", (long)args[i]);
+//               if(i < 5) printf(", ");
+//             }
+//             printf(") -> %ld\n", (long)p->trapframe->a0);
+//           }   
+//     } else {
+//         printf("%d %s: unknown sys call %d\n", p->pid, p->name, num);
+//         p->trapframe->a0 = -1;
+//     }
+// }
+
+void syscall(void) {
+    struct proc *p = myproc();
+    int num = p->trapframe->a7;
+
+    if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+        uint64 ret_val = syscalls[num](); // Gọi syscall
+        p->trapframe->a0 = ret_val;
+
+        // Nếu syscall đang được trace
+        if (p->trace_mask & (1 << num)) {
+            printf("%d: syscall %s -> %ld\n", p->pid, syscall_names[num], (long)ret_val);
+        }
+    } else {
+        printf("%d %s: unknown sys call %d\n", p->pid, p->name, num);
+        p->trapframe->a0 = -1;
+    }
 }
+
