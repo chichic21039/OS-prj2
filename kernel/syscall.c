@@ -201,10 +201,17 @@ void syscall(void) {
         // Nếu syscall đang được trace
         if (p->trace_mask & (1 << num)) {
             printf("%d: syscall %s -> %ld\n", p->pid, syscall_names[num], (long)ret_val);
+
+            uint64 arg0 = p->trapframe->a0;
+            uint64 arg1 = p->trapframe->a1;
+            uint64 arg2 = p->trapframe->a2;
+            uint64 arg3 = p->trapframe->a3;
+            uint64 arg4 = p->trapframe->a4;
+            uint64 arg5 = p->trapframe->a5;
+            printf(" -> args: %ld %ld %ld %ld %ld %ld\n", (long) arg0, (long)arg1, (long)arg2, (long)arg3, (long)arg4, (long)arg5);
         }
     } else {
         printf("%d %s: unknown sys call %d\n", p->pid, p->name, num);
         p->trapframe->a0 = -1;
     }
 }
-
