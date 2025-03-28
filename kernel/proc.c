@@ -694,3 +694,24 @@ procdump(void)
     printf("\n");
   }
 }
+
+uint64 count_procs()
+{
+  struct proc*p;
+  uint64 count = 0;
+  for(p = proc; p < &proc[NPROC]; p++)
+  {
+    if(p->state != UNUSED) count++;
+  }
+  return count;
+}
+
+uint64 compute_loadavg()
+{
+  static uint64 load = 0;
+  uint active_procs = count_procs();
+  load = (load*50 + active_procs*50)/100;
+  return load;
+}
+
+
